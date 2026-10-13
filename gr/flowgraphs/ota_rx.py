@@ -372,8 +372,8 @@ def main():
     p.add_argument("--bandwidth", type=float, default=0.0)
     p.add_argument("--clock", choices=("gpsdo", "external", "internal", "try"),
                    default="try",
-                   help="external is a cabled 10 MHz/PPS into both radios and "
-                        "is what the B210 pair has; must match the transmitter")
+                   help="gpsdo uses the onboard GPSDO (the paper's two B200s); "
+                        "external is a cabled 10 MHz/PPS; must match the transmitter")
     p.add_argument("--gps-timeout", type=float, default=120.0,
                    dest="gps_timeout")
     p.add_argument("--zmq", default="", help="ota PUB endpoint")

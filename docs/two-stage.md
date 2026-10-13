@@ -514,5 +514,5 @@ a documented limitation rather than a miss.
   delay bias of findings.md section 15.
 - Per-dwell elevation, which needs a trajectory-generator column.
 - A screen recording of the demo. Handoff section 8 wants one by day 12.
-- Nothing has been transmitted. Sim and replay modes touch no radio; live
-  mode is written but has not yet been exercised on the available B210 pair.
+- Sim and replay modes touch no radio. The GRCon paper's hardware results are
+  conducted captures on two GPSDO-locked B200s, scored in replay mode.

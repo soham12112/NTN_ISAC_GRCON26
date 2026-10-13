@@ -156,9 +156,9 @@ def main():
     p.add_argument("--interp-taps", type=int, default=16, dest="interp_taps")
     p.add_argument("--clock", choices=("gpsdo", "external", "internal", "try"),
                    default="try",
-                   help="external is a cabled 10 MHz/PPS into both radios and "
-                        "is what the B210 pair has; gpsdo requires an onboard "
-                        "GPSDO; try falls back to internal")
+                   help="gpsdo uses the onboard GPSDO (the paper's two B200s); "
+                        "external is a cabled 10 MHz/PPS into both radios; "
+                        "try falls back to internal")
     p.add_argument("--gps-timeout", type=float, default=120.0,
                    dest="gps_timeout")
     p.add_argument("--epoch", type=float, default=0.0,

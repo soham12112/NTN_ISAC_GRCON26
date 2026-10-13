@@ -1,11 +1,41 @@
 # NTN ISAC (GRCon 2026)
 
-Hardware-in-the-loop **5G NR integrated sensing and communication** over an
-emulated LEO channel, as GNU Radio blocks.
+**gr-ntnisac** is an open GNU Radio testbed for non-terrestrial integrated
+sensing and communications. It applies an emulated low-Earth-orbit channel to
+a standard 5G New Radio downlink, sends that waveform through two cabled USRP
+B200s, and scores the receiver against the delay and Doppler commanded for
+every path. The same receiver code runs in simulation, on recorded captures,
+and on hardware.
 
-This repository is the **end-to-end ISAC path**: simulation on one laptop, then
-the same blocks over the air on two USRP B210s. Calibration scripts, lab
-handoffs, and capture logs are not included.
+The channel and the objects are emulated, and the radios stay on cable with
+at least 40 dB of attenuation. The testbed does not claim satellite reception
+or a radiated physical target. It tests the receiver on real radios against
+known truth. Calibration scripts, lab handoffs, raw IQ captures, and replay
+logs are not included here.
+
+## Paper
+
+Soham Dhiren Desai, “gr-ntnisac: An Open GNU Radio Testbed for NTN-ISAC,”
+arXiv:2610.11307, 2026.
+[arxiv.org/abs/2610.11307](https://arxiv.org/abs/2610.11307)
+([PDF](https://arxiv.org/pdf/2610.11307)).
+
+The waveform, scene, and receiver are held fixed from simulation to hardware.
+On that path the paper reports:
+
+- Direct-path cancellation of **34.8 dB** on two cabled B200s, and **37.6 dB**
+  in a matched simulation with the radios removed.
+- A floor near **40 dB** from the emulator’s 8-tap fractional-delay filter and
+  from a simulated rotating blade inside the direct path’s delay bin. Without
+  either, depth reaches **71.0 dB**. A diagnostic canceller that also removes
+  the per-subcarrier response and the per-symbol phase reaches **72.7 dB** on
+  the same captures.
+- A payload-aided receiver that detects a **−25 dB** moving path in **76.9%**
+  of dwells (230 of 299) on a 30 s conducted capture, within one delay bin and
+  10 Hz. The weaker rungs at −30, −35, and −40 dB were not detected. That
+  scene is [`scenes/ladder.yml`](scenes/ladder.yml).
+
+Talk slides: [`docs/NTN_ISAC_in_GNU_Radio.pptx`](docs/NTN_ISAC_in_GNU_Radio.pptx).
 
 ## What you get
 
@@ -28,7 +58,8 @@ handoffs, and capture logs are not included.
   `numpy`, `scipy`, `pyzmq`, `pyqtgraph`
 - Optional: MATLAB R2023b+ with 5G Toolbox and Satellite Communications Toolbox
   (only to regenerate waveforms)
-- Optional: two USRP B210s for over-the-air
+- Optional: two USRP B2xx radios. The paper's conducted setup used two B200s,
+  each disciplined by its internal GPSDO.
 
 ## Build
 
@@ -89,25 +120,62 @@ $NTN_PY tests/verify_twostage.py
 $NTN_PY tests/verify_ota.py
 ```
 
-## Over the air
+## Conducted hardware (as in the GRCon paper)
 
-Read `docs/running.md` section 3 and `docs/ota.md` before transmitting.
-Highlights:
+Every hardware result in the paper is **conducted over cable**: two hosts, two
+USRP B200s, each locked to its GPSDO, connected through a splitter and fixed
+attenuation (at least 40 dB). Nothing is radiated. Capture first, then replay.
 
-- Bundles are at **2478 MHz** (2.4 GHz ISM). Survey the local band first.
-- A B210 is about 10 dBm. Check your local rules; in the US this is typically
-  FCC Part 15.247 at this bandwidth.
-- Indoor delay resolution is ~67 m, so a physical object is **unresolved in
-  delay**. The OTA path measures **Doppler** after cancelling the direct path.
-  Use a rotating metal blade (~7 or 11 rev/s), not a person walking.
-
-One-radio cable loopback first (TX/RX to RX2 through **≥40 dB** attenuation):
+One-radio loopback first (TX/RX to RX2 through **≥40 dB** attenuation), to check
+sustained streaming and measure the fixed hardware delay:
 
 ```sh
 $NTN_PY gr/flowgraphs/loopback.py --wf data/wf_ota --traj data/traj_ota
 ```
 
-Two laptops, TX first:
+Two hosts. Transmit host first; it prints an `--epoch`. Paste that value on
+the receive host, do not invent one:
+
+```sh
+$NTN_PY gr/flowgraphs/ota_tx.py --tx-args "serial=<TX>" \
+    --wf data/wf_ota --traj data/traj_bench --t-start 300 \
+    --clock gpsdo --tau-bias 40 --tx-gain 72 --interp-taps 8
+
+$NTN_PY gr/flowgraphs/rx_capture.py --rx-args "serial=<RX>" \
+    --wf data/wf_ota --traj data/traj_bench --clock gpsdo --epoch <printed> \
+    --t-start 300 --tau-bias 40 --rx-gain 40 --seconds 3 --out data/twohost1.cf32
+```
+
+Gate the capture (PAPR within 1.5 dB of the waveform's, no frame-to-frame
+splice), then replay it at a desk:
+
+```sh
+$NTN_PY gr/flowgraphs/ota_rx.py --mode replay --capture data/twohost1.cf32 \
+    --wf data/wf_ota --traj data/traj_bench --t-start 300 --tau-bias 40 \
+    --no-emulated --json twohost1.json
+```
+
+Build `data/traj_bench` with `tools/build_scene.py scenes/bench.yml`; the
+detection ladder in the paper uses `scenes/ladder.yml`. The `ota_*` names are
+historical: those blocks were first written for two free-running radios.
+
+## Optional over the air workflow
+
+This workflow is provided by the software but was not used for the GRCon
+paper's reported results. The paper uses a cabled, attenuated two-B200 path so
+RF hardware impairments coexist with exact commanded scatterer truth.
+
+Read `docs/running.md` section 3 and `docs/ota.md` before transmitting.
+Highlights:
+
+- Bundles are at **2478 MHz** (2.4 GHz ISM). Survey the local band first.
+- A B200 is about 10 dBm. Check your local rules; in the US this is typically
+  FCC Part 15.247 at this bandwidth.
+- Indoor delay resolution is ~67 m, so a physical object is **unresolved in
+  delay**. The OTA path measures **Doppler** after cancelling the direct path.
+  Use a rotating metal blade (~7 or 11 rev/s), not a person walking.
+
+Run the conducted loopback above first. Then two laptops, TX first:
 
 ```sh
 $NTN_PY gr/flowgraphs/ota_tx.py --wf data/wf_ota --traj data/traj_ota \

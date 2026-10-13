@@ -1,0 +1,116 @@
+# Sensitivity ladder: the whole detection map in one transmission.
+#
+#   $NTN_PY tools/build_scene.py scenes/ladder.yml --plot
+#
+# Written for the last night with two SDRs. The channel is applied at transmit
+# time, so a scene costs a transmit run, and a transmit run costs an operator
+# at the other laptop pasting an epoch. Rather than spend four runs walking
+# scenes/bench.yml down a gain ladder (data/traj_g-20 .. g-50), this puts the
+# whole ladder in one scene: six targets that are all separable in delay, each
+# carrying its own gain, so one capture measures every rung at once.
+#
+# Separability is the whole design. 0.4 m of excess path is 0.006 of a 66.6 m
+# delay cell, which is why scenes/bench.yml says the blade is not resolvable
+# and Doppler is its only observable. These targets are spaced 150 m, better
+# than two cells, so ota_sense's CLEAN sees each as its own component and the
+# replay can score them independently. Read the detections out of the `clean`
+# list in --json, with --n-clean raised above its default of 2.
+#
+# The gain falls as the range grows, which is a synthetic radar horizon: the
+# floor is wherever detection stops. Against the measured two-host
+# cancellation depth of 34.75 dB the crossing should sit between -30 and -40,
+# so the ladder brackets it with a rung either side.
+#
+# Two things constrain the rung count and the rates, and both were found by
+# running build_scene before transmitting rather than after:
+#
+# 1. **Paths cost transmit throughput.** Eight paths estimates 7.6 MS/s
+#    against the 7.68 required, i.e. the C++ channel block does not keep up
+#    live and the transmitter underflows - the failure that PAPR 19-20 dB
+#    reports and that costs a whole run. Six paths is about 10 MS/s and has
+#    margin. Do not add rungs without re-reading that line.
+#
+# 2. **Rates must not let neighbours cross.** Rungs are 150 m apart, so over
+#    a 30 s capture any relative rate above 5 m/s closes the gap. Alternating
+#    the sign, which looks tidy and separates them in Doppler, gives 12 m/s of
+#    relative motion and merges adjacent rungs mid-capture. So all rates are
+#    the same sign and increase with range: the ladder spreads rather than
+#    collapses, and separation grows from 150 m to 195 m across the capture.
+#
+# Capture at --t-start 300 and no later. These are `linear` targets on a 600 s
+# trajectory, so their excess path keeps growing after the capture window and
+# leaves the cyclic-prefix budget - build_scene says so. Inside t=300 to 330
+# every rung is between 150 and 885 m, comfortably within the 1265 m budget.
+# A capture at t_start 450 would be outside it and would be meaningless.
+
+name: ladder
+out_dir: data/traj_ladder
+carrier_hz: 2.478e9
+
+duration_s: 600
+# 1 kHz for the same reason as scenes/bench.yml: a 100 Hz table interpolates a
+# satellite pass perfectly but not a 7 rev/s rotation, and the comb that gets
+# measured is then the interpolator's.
+rate_hz: 1000
+
+orbit:
+  source: circular
+  alt_km: 550
+  max_elev_deg: 67.5
+
+paths:
+  - type: direct
+    name: satellite
+
+  # The ladder. Every rung is `linear` rather than `static` so it carries a
+  # residual Doppler well outside the +-30 Hz zero-Doppler notch that a 100 ms
+  # dwell notches out - 4.7 m/s is 38.8 Hz, so everything here is >= 5 m/s.
+  # Rates are all the same sign and increase with range, for the
+  # non-crossing reason in the header; they still all differ, so the rungs are
+  # separable in Doppler as well as in delay and a delay sidelobe cannot be
+  # mistaken for a neighbour.
+  #
+  # t_ref_s is 300, not bench_both.yml's 500, because excess_m is the value at
+  # t_ref and the capture opens at --t-start 300. Get this wrong and every
+  # commanded range is off by the range rate times 200 s.
+
+  - type: linear
+    name: rung_m25
+    excess_m: 150
+    excess_rate_mps: 5.0          # -> -41 Hz
+    t_ref_s: 300
+    gain_db: -25
+
+  - type: linear
+    name: rung_m30
+    excess_m: 300
+    excess_rate_mps: 6.5          # -> -54 Hz
+    t_ref_s: 300
+    gain_db: -30
+
+  - type: linear
+    name: rung_m35
+    excess_m: 450
+    excess_rate_mps: 8.0          # -> -66 Hz
+    t_ref_s: 300
+    gain_db: -35
+
+  - type: linear
+    name: rung_m40
+    excess_m: 600
+    excess_rate_mps: 9.5          # -> -79 Hz
+    t_ref_s: 300
+    gain_db: -40
+
+  # Zero-Doppler control, resolved in delay and strong. It sits inside the
+  # notch by construction, so a confirmed track on it is a bug, not a
+  # detection - the same role clutter plays in scenes/bench_both.yml, moved
+  # past --clutter-max-range-m (250 m) so it also tests that the locus is
+  # doing the suppressing rather than the range gate.
+  - type: static
+    name: clutter_zero_doppler
+    excess_m: 1050
+    gain_db: -25
+
+noise:
+  esn0_db: 45

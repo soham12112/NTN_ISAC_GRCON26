@@ -1,11 +1,11 @@
 #!/usr/bin/env /usr/bin/python3
 """One-process cabled loopback: transmit and capture together.
 
-Needed when a single B210 does both ends, because two processes cannot share
+Needed when a single B200 does both ends, because two processes cannot share
 one device. With two radios, run tx_usrp.py and rx_capture.py separately and
 pass --tx-args / --rx-args to pick them by serial.
 
-Read this before trusting a single-radio result: one B210 means one LO and one
+Read this before trusting a single-radio result: one radio means one LO and one
 reference clock for both ends, so the clock-offset Doppler bias and the
 range-rate error floor that V4 and V5 exist to measure are identically zero.
 That is the flattering configuration. It validates the RF path, the cabling and

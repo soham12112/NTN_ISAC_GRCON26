@@ -27,13 +27,13 @@ Modes:
                   This is the mode that runs today and the one the offline
                   campaign uses.
   --mode replay   read a recorded capture instead of the channel, so the
-                  identical processing chain runs on real RF. Handoff
-                  section 8 wants this by day 12.
-  --mode live     USRP source. Needs the two-radio cabled path of section 9,
-                  which is written but has not yet been exercised on the
-                  available B210 pair.
+                  identical processing chain runs on real RF. This is how
+                  the GRCon paper's conducted two-B200 captures were scored.
+  --mode live     USRP source on the two-radio cabled path. Stage 2 is
+                  slower than real time in Python, so for measurements
+                  capture with rx_capture.py and use --mode replay.
 
-Nothing has been transmitted. In sim and replay this graph touches no radio.
+In sim and replay this graph touches no radio.
 """
 import argparse
 import json
