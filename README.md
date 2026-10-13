@@ -37,6 +37,28 @@ On that path the paper reports:
 
 Talk slides: [`docs/NTN_ISAC_in_GNU_Radio.pptx`](docs/NTN_ISAC_in_GNU_Radio.pptx).
 
+### Figures from the paper
+
+The illuminator is one LEO satellite. The receiver is passive. Excess path and residual Doppler are measured from the direct path.
+
+<img src="docs/figures/scenario.png" alt="LEO satellite, direct path, moving object, and static clutter" width="640">
+
+One simulated dwell. A static scatterer at 250 m and a −25 dB object at 640 m land on the delay and Doppler the scene commanded.
+
+<img src="docs/figures/geometry.png" alt="Bistatic geometry and a delay-Doppler map of one dwell" width="860">
+
+The same receiver runs in simulation, on a recorded capture, and on the conducted bench.
+
+<img src="docs/figures/testbed.png" alt="Flow from waveform and scene files through two cabled USRPs to replay sensing" width="860">
+
+Two GPSDO-locked USRP B200s, a splitter, and fixed attenuation. Nothing in the paper is radiated.
+
+<img src="docs/figures/hardware.png" alt="Two USRP B200s and the splitter and cabling used for the conducted captures" width="480">
+
+Direct-path cancellation. Single-point CLEAN is about 35 dB on two radios. The response-aware diagnostic reaches about 73 dB on the same captures.
+
+<img src="docs/figures/cancellation.png" alt="Cancellation depth in simulation and on one-radio and two-host hardware" width="860">
+
 ## What you get
 
 - **`gr-ntnisac`** — GNU Radio out-of-tree module (C++ LEO channel + Python
