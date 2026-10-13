@@ -1,0 +1,23 @@
+# Generated captures and extra bundles. Sample wf_ota / traj_ota are tracked.
+data/**
+!data/wf_ota/
+!data/wf_ota/**
+!data/traj_ota/
+!data/traj_ota/**
+
+*.pyc
+__pycache__/
+.matlab_tmp/
+gr-ntnisac/build/
+gr-ntnisac/install/
+
+# IEEE PDFs are not redistributed from this tree.
+*.pdf
+
+# grcc output. The .grc is the source.
+gr-ntnisac/examples/*.py
+!gr-ntnisac/examples/make_ota_grc.py
+
+.venv/
+.DS_Store
+.obsidian/

@@ -1,0 +1,66 @@
+id: ntnisac_esn0_noise
+label: Es/N0 Noise
+category: '[ntnisac]'
+
+templates:
+  imports: from gnuradio import ntnisac
+  make: ntnisac.esn0_noise(${esn0_db}, ${n_fft}, ${n_occ}, ${signal_rms}, ${settle}, ${seed})
+  callbacks:
+  - set_esn0_db(${esn0_db})
+
+parameters:
+- id: esn0_db
+  label: Es/N0 (dB)
+  dtype: real
+  default: '30.0'
+- id: n_fft
+  label: FFT size
+  dtype: int
+  default: '512'
+- id: n_occ
+  label: Occupied subcarriers per symbol
+  dtype: int
+  default: '300'
+- id: signal_rms
+  label: Signal RMS (<0 = measure)
+  dtype: real
+  default: '-1.0'
+  hide: part
+- id: settle
+  label: Measurement window (samples)
+  dtype: int
+  default: '200000'
+  hide: part
+- id: seed
+  label: Seed
+  dtype: int
+  default: '0'
+
+inputs:
+- domain: stream
+  dtype: complex
+
+outputs:
+- domain: stream
+  dtype: complex
+
+documentation: |-
+  Complex AWGN at a specified Es/N0, for the sweep in handoff section 10.
+
+  Es is the energy per OCCUPIED resource element; N0 is the noise density per
+  resource element after the receiver's FFT. With this project's OFDM
+  convention (plain fft/ifft, no 1/sqrt(N)):
+
+      sigma^2 = E|x_t|^2 * n_fft / (n_occ_per_sym * Es/N0)
+
+  "Occupied subcarriers per symbol" is per symbol, not the frame total. Using
+  config.json's n_occ_re here instead would be wrong by the symbol count,
+  which is 22 dB for this waveform.
+
+  Signal power is measured at the input, not read from config.json, because by
+  this point the waveform has been through the LEO channel and its power
+  depends on the path gains and on how many paths are enabled. It is averaged
+  over the measurement window and then held, so a sweep is reproducible. Set
+  Signal RMS above zero to pin it instead.
+
+file_format: 1

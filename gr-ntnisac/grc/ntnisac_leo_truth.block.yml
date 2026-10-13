@@ -1,0 +1,63 @@
+id: ntnisac_leo_truth
+label: LEO Truth
+category: '[ntnisac]'
+
+templates:
+  imports: from gnuradio import ntnisac
+  make: ntnisac.leo_truth(${traj_dir}, ${fs}, ${t_start}, ${period_ms}, ${tau_bias}, ${port})
+
+parameters:
+- id: traj_dir
+  label: Trajectory dir
+  dtype: string
+- id: fs
+  label: Sample rate (Hz)
+  dtype: real
+  default: samp_rate
+- id: t_start
+  label: Start time in pass (s)
+  dtype: real
+  default: '0.0'
+- id: period_ms
+  label: Publish period (ms)
+  dtype: real
+  default: '100.0'
+- id: tau_bias
+  label: Delay bias (samples)
+  dtype: real
+  default: '40.0'
+- id: port
+  label: Message port name
+  dtype: string
+  default: truth
+  hide: part
+
+inputs:
+- domain: stream
+  dtype: complex
+
+outputs:
+- domain: stream
+  dtype: complex
+- domain: message
+  id: truth
+  optional: true
+
+documentation: |-
+  Commanded trajectory truth as a message stream.
+
+  Per path: delay in samples, excess path length, absolute Doppler, residual
+  Doppler relative to the direct path, gain and a present flag. Read through
+  the same not-a-knot spline the channel uses, so this is the channel's own
+  truth and not a reimplementation of it.
+
+  There is no physical reflector anywhere in this setup, and that is
+  deliberate: it is what makes the commanded trajectory exact truth. This
+  block is where that exactness reaches the flowgraph, a dashboard and a
+  capture sidecar.
+
+  Clocked by counting samples on the pass-through input, not by a wall clock.
+  During a file-driven replay the graph does not run at 1x, and a timer would
+  drift against the emulated pass and mislabel the capture.
+
+file_format: 1

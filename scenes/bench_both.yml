@@ -1,0 +1,81 @@
+# Bench scene: the over-the-air geometry, on one laptop, with no radio.
+#
+#   $NTN_PY tools/build_scene.py scenes/bench.yml --plot
+#
+# Compiles to data/traj_bench. Every path below becomes one more R_p(t) column
+# in traj.csv, which the unmodified C++ channel block plays.
+#
+# The rule every path obeys: delay is the only thing injected, and Doppler
+# falls out of the carrier phase. So a target that should show a Doppler is
+# given an excess path that CHANGES at the rate implying it. There is no
+# Doppler parameter anywhere in this file.
+
+name: bench_both
+out_dir: data/traj_bench_both
+carrier_hz: 2.478e9
+
+duration_s: 600
+# 1 kHz, not the 100 Hz gen_trajectory writes. A satellite pass is smooth over
+# seconds and 100 Hz interpolates perfectly; a 7 rev/s rotation is 14 samples
+# per cycle, and while the spline's amplitude is fine its harmonic structure is
+# not. Measured, a 100 Hz table reported a confident 4.00 rev/s against a true
+# 7.00 - the comb being measured was the interpolator's, not the target's.
+rate_hz: 1000
+
+orbit:
+  source: circular        # 'file' to reuse an SGP4 pass from gen_trajectory.m
+  alt_km: 550
+  max_elev_deg: 67.5
+
+paths:
+  - type: direct
+    name: satellite
+
+  # A static scatterer. Resolved in delay, and it sits inside the zero-Doppler
+  # notch by construction, so it should NOT produce a confirmed track.
+  - type: static
+    name: clutter
+    excess_m: 250
+    gain_db: -20
+
+  # The emulated drone: exact commanded truth, resolved in delay. This is what
+  # the processing chain is validated against.
+  - type: linear
+    name: drone
+    excess_m: 640
+    excess_rate_mps: 4.7        # -> 38.8 Hz of residual Doppler
+    t_ref_s: 500
+    gain_db: -25
+
+  # The physical object between the two radios. 0.4 m of excess path is
+  # 0.006 of a 66.6 m delay cell, so it is NOT resolvable in delay and never
+  # will be - Doppler is the only observable. 7 rev/s is chosen because its
+  # harmonics miss the 25 Hz aperture comb; 5 would put every one of them on a
+  # masked bin, and build_scene warns if you try.
+  - type: rotating
+    name: blade
+    excess_m: 0.4
+    radius_m: 0.25
+    rot_hz: 7
+    gain_db: -30
+
+# Both kinds of target in one capture: an emulated one at 640 m with exact
+# commanded truth, and a physical one at 0.4 m with none. That combination is
+# the demonstration - the first proves the chain is right, the second proves it
+# is not merely self-consistent. It is NOT a measurement of either: see the
+# note in scenes/bench.yml about why the rotation rate degrades here.
+
+# 3GPP TR 38.811 multipath. Off by default: its clusters are statistical and
+# have no ground truth, so they make a COMMUNICATION measurement credible while
+# contaminating a sensing one. Turn it on to show the link survives a
+# standards-defined NTN channel; score sensing with it off.
+#
+#  - type: ntn_tdl
+#    profile: NTN-TDL-C          # -A, -B NLOS; -C, -D LOS
+#    delay_spread_ns: 100
+#    mobile_speed_mps: 0.83      # 3 km/h -> 6.9 Hz of Doppler spread
+#    sub_rays: 1                 # >1 gives fading, and costs real-time margin
+#    t_ref_s: 300
+
+noise:
+  esn0_db: 45

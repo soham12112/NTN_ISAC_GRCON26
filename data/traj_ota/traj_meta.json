@@ -1,0 +1,124 @@
+{
+  "carrier_hz": 2.478E+9,
+  "r_nominal_m": 594174.749782,
+  "r0_at_t0_m": 2.1682951050410285E+6,
+  "tau_max_s": 0.0052586186314519615,
+  "tau_max_samples": 40386.191089551066,
+  "duration_s": 600,
+  "rate_hz": 100,
+  "n_samples": 60001,
+  "epoch_utc": "2026-09-07T19:15:50.000Z",
+  "tca_utc": "2026-09-07T19:20:50.000Z",
+  "tle": "/Users/sohamdhirendesai/Documents/gnu_radio/gnu_radio_isac/matlab/../data/traj_ota/leo550.tle",
+  "ground_station": {
+    "lat_deg": 37.3861,
+    "lon_deg": -122.0839,
+    "alt_m": 30
+  },
+  "cp_limit_m": 1400,
+  "cp_budget_m": 1260,
+  "paths": [
+    {
+      "id": 0,
+      "name": "direct",
+      "description": "Direct satellite path; R0 is the slant range.",
+      "gain_db": 0,
+      "excess_m_max": 0,
+      "always_present": true
+    },
+    {
+      "id": 1,
+      "name": "clutter",
+      "description": "Static scatterer 250 m from the receiver at 155 deg azimuth, 5 deg elevation.",
+      "gain_db": -20,
+      "excess_m_max": 349.6988421581737,
+      "always_present": true
+    },
+    {
+      "id": 2,
+      "name": "drone",
+      "description": "Drone at 300 m altitude, 200 m lateral offset, crossing at 15 m/s.",
+      "gain_db": -25,
+      "excess_m_max": 1259.9876328470255,
+      "always_present": false
+    }
+  ],
+  "well_separated_windows_s": [
+    [
+      158.97,
+      276.16
+    ],
+    [
+      287.13,
+      414.24
+    ],
+    [
+      448.88,
+      600
+    ]
+  ],
+  "well_separated_window_s": [
+    448.88,
+    600
+  ],
+  "delay_resolution_m": 66.620546222222217,
+  "los_rotation_deg_s": 0.70307235276064384,
+  "clutter_residual_doppler_bound_hz": 25.357007300832048,
+  "clutter_azimuth_deg": 155,
+  "target_window_s": [
+    158.97,
+    600
+  ],
+  "target_absent_s": [
+    [
+      0,
+      158.97
+    ],
+    [
+      600,
+      600
+    ]
+  ],
+  "elevation_deg": {
+    "min": 5.4334602043072664,
+    "max": 67.543894404775344
+  },
+  "slant_range_m": {
+    "min": 594174.74978290556,
+    "max": 2.169517182465123E+6,
+    "at_t0": 2.1682951050410285E+6
+  },
+  "range_rate_mps": {
+    "min": -6636.23470627881,
+    "max": 6626.28790670719,
+    "abs_max": 6636.23470627881
+  },
+  "doppler_hz": {
+    "min": -54771.029072453908,
+    "max": 54853.246515490704,
+    "abs_max": 54853.246515490704
+  },
+  "doppler_rate_hz_s": {
+    "abs_max": 678.19223342681073
+  },
+  "delay_walk_samples_per_s": {
+    "abs_max": 170.00521922476534,
+    "fs_hz": 7.68E+6
+  },
+  "residual_doppler_hz": {
+    "clutter_abs_max": 7.81925023775965,
+    "drone_min": -45.419425646840772,
+    "drone_max": 95.5477095085417
+  },
+  "excess_m": {
+    "clutter_min": 202.3445082813999,
+    "clutter_max": 349.6988421581737,
+    "drone_min": 80.4062239530432,
+    "drone_max": 1259.9876328470255
+  },
+  "range_m": {
+    "clutter": 250.00000000062604,
+    "drone_min": 360.55512754696082,
+    "drone_max": 4514.4213361183356
+  }
+}

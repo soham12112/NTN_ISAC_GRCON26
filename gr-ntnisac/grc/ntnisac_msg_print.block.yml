@@ -1,0 +1,39 @@
+id: ntnisac_msg_print
+label: Message Print
+category: '[ntnisac]'
+
+templates:
+  imports: from gnuradio import ntnisac
+  make: ntnisac.msg_print(${tag}, ${verbose})
+
+parameters:
+- id: tag
+  label: Tag
+  dtype: string
+  default: ''
+- id: verbose
+  label: Also dump scalars
+  dtype: bool
+  default: 'False'
+  options: ['True', 'False']
+
+inputs:
+- domain: message
+  id: in
+
+documentation: |-
+  Decodes and prints this module's messages. Use it instead of Message Debug.
+
+  Every payload here travels as UTF-8 JSON inside a u8vector rather than as a
+  PMT symbol, because pmt::serialize writes a symbol's length in two bytes and
+  a payload carrying two delay-Doppler maps is 166 kB - it worked in-process
+  between two blocks and died on the wire as "pmt::deserialize: very long
+  symbol" the moment anything subscribed over ZMQ (findings.md section 15).
+
+  The consequence on the canvas is that Message Debug prints a dwell as several
+  thousand decimal bytes. This block decodes the payload and prints the fields
+  that matter for each message kind: cancellation and tracker state for "ota",
+  rotation rate and Doppler edge for "micro", detections and tracks for
+  "sense", commanded truth for "truth".
+
+file_format: 1

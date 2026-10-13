@@ -1,0 +1,85 @@
+id: ntnisac_leo_channel
+label: LEO Channel
+category: '[ntnisac]'
+
+templates:
+  imports: from gnuradio import ntnisac
+  make: ntnisac.leo_channel(${traj_csv}, ${fs}, ${fc}, ${r_nominal}, ${tau_bias}, ${delay_line}, ${interp_taps}, ${t_start})
+  callbacks:
+  - set_time(${t_start})
+
+parameters:
+- id: traj_csv
+  label: Trajectory CSV
+  dtype: file_open
+- id: fs
+  label: Sample rate (Hz)
+  dtype: real
+  default: samp_rate
+- id: fc
+  label: Carrier (Hz)
+  dtype: real
+  default: 2e9
+- id: r_nominal
+  label: R nominal (m, <0 = min over table)
+  dtype: real
+  default: '-1.0'
+- id: tau_bias
+  label: Delay bias (samples)
+  dtype: real
+  default: '16.0'
+- id: delay_line
+  label: Delay line (samples, power of 2)
+  dtype: int
+  default: '131072'
+  hide: part
+- id: interp_taps
+  label: Interpolator taps
+  dtype: int
+  default: '8'
+  options: ['4', '8', '12', '16', '24']
+  option_labels: [cubic Farrow (4), sinc 8, sinc 12, sinc 16, sinc 24]
+- id: t_start
+  label: Start time in pass (s)
+  dtype: real
+  default: '0.0'
+
+inputs:
+- domain: stream
+  dtype: complex
+
+outputs:
+- domain: stream
+  dtype: complex
+
+documentation: |-
+  Time-varying multipath channel for an emulated LEO pass.
+
+    y_p(t) = a_p(t) * x(t - tau_p(t)) * exp(-j*2*pi*f_c*tau_p(t))
+
+  summed over the paths in the trajectory CSV. Delay is the only thing
+  injected; the Doppler falls out of the carrier phase term, which is exactly
+  the Doppler implied by the delay rate.
+
+  The sample counter is absolute and never resets, so a 20 ms waveform file on
+  repeat plays correctly under a 600 s pass. The block returns WORK_DONE at
+  the final trajectory timestamp; extrapolating the edge spline would no
+  longer represent the commanded pass and eventually invalidates the
+  receiver's propagation-margin buffer.
+
+  Interpolator: 4 taps is the cubic Farrow, which droops 1.96 dB at a 0.293
+  cycles/sample band edge at mu = 0.5 and so amplitude-modulates a walking tap
+  (-26.4 dBc against -45.6 for 16-tap sinc). Measured cost on a weak target is
+  only 0.8 dB, so nothing is gated on the choice.
+
+  There is no VOLK in this block. volk_32fc_32f_dot_prod_32fc is exactly the
+  tap loop and segfaults in VOLK 2.5 when called per sample at num_points 16
+  or more; the scalar loop replaced it. See findings.md section 5. Throughput
+  re-measured: 21.98 / 20.43 / 16.47 / 14.21 / 12.03 MS/s for 4 / 8 / 12 / 16 /
+  24 taps, so every tap count clears 7.68 MS/s and 16 is affordable live.
+
+  Runtime methods: set_enable(path, on), set_gain_db(path, dB),
+  clear_gain_override(path), set_time(s), and tap_delay_samples / tap_doppler_hz
+  / tap_excess_m / tap_gain_db for commanded truth.
+
+file_format: 1

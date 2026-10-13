@@ -1,0 +1,409 @@
+options:
+  parameters:
+    author: NTN ISAC prototype
+    catch_exceptions: 'True'
+    category: '[ntnisac]'
+    cmake_opt: ''
+    comment: 'Two-stage coarse-to-fine ISAC over an emulated LEO channel.
+
+
+      wf_dir and traj_dir are anchored to $NTN_ROOT, with "." as fallback.
+
+      Source env.sh before opening GRC so the OOT module and
+
+      generated data are found regardless of GRC''s working directory.
+
+
+      The message link runs both ways between the two stages: SSB Coarse
+
+      publishes a Gaussian range gate on "coarse", Grid Sense returns refined
+
+      measurements on "refine". That loop is what resolves stage 1''s 50 Hz
+
+      Doppler ambiguity - measured, it does so after a single dwell.'
+    copyright: ''
+    description: Paper Fig. 2, adapted to one receive antenna
+    gen_cmake: 'On'
+    gen_linking: dynamic
+    generate_options: no_gui
+    hier_block_src_path: '.:'
+    id: ntnisac_twostage
+    max_nouts: '0'
+    output_language: python
+    placement: (0,0)
+    qt_qss_theme: ''
+    realtime_scheduling: ''
+    run: 'True'
+    run_command: '{python} -u {filename}'
+    run_options: run
+    sizing_mode: fixed
+    thread_safe_setters: ''
+    title: NTN ISAC two-stage (paper Fig. 2)
+    window_size: (1000,1000)
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [8, 8]
+    rotation: 0
+    state: enabled
+
+blocks:
+- name: n_frames
+  id: variable
+  parameters:
+    comment: 5 frames = 100 ms dwell
+    value: '5'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [32, 732.0]
+    rotation: 0
+    state: enabled
+- name: samp_rate
+  id: variable
+  parameters:
+    comment: 15 kHz SCS, 25 PRB, 512-point FFT. Handoff section 4.
+    value: '7680000.0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [224, 36.0]
+    rotation: 0
+    state: enabled
+- name: t_start
+  id: variable
+  parameters:
+    comment: In traj_meta's last well-separated window
+    value: '500.0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [40, 636.0]
+    rotation: 0
+    state: enabled
+- name: tau_bias
+  id: variable
+  parameters:
+    comment: Channel and receiver must agree
+    value: '40.0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [256, 740.0]
+    rotation: 0
+    state: enabled
+- name: traj_dir
+  id: variable
+  parameters:
+    comment: LEO pass from matlab/gen_trajectory.m, anchored at the repository root
+    value: os.path.join(os.environ.get("NTN_ROOT", "."), "data", "traj")
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [720, 4.0]
+    rotation: 0
+    state: enabled
+- name: wf_dir
+  id: variable
+  parameters:
+    comment: Waveform bundle from matlab/gen_waveform.m, anchored at the repository
+      root
+    value: os.path.join(os.environ.get("NTN_ROOT", "."), "data", "wf_occ100")
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [368, 4.0]
+    rotation: 0
+    state: enabled
+- name: blocks_file_source_0
+  id: blocks_file_source
+  parameters:
+    affinity: ''
+    alias: ''
+    begin_tag: pmt.PMT_NIL
+    comment: 20 ms, loops at an SSB boundary
+    file: wf_dir + "/tx_iq.cf32"
+    length: '0'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    offset: '0'
+    repeat: 'True'
+    type: complex
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [32, 360.0]
+    rotation: 0
+    state: enabled
+- name: blocks_throttle2_0
+  id: blocks_throttle2
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    ignoretag: 'True'
+    limit: auto
+    maximum: '0.1'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    samples_per_second: samp_rate
+    type: complex
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [184, 272.0]
+    rotation: 0
+    state: enabled
+- name: import_os
+  id: import
+  parameters:
+    alias: ''
+    comment: Resolve data paths independently of GRC's working directory.
+    imports: import os
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [32, 812.0]
+    rotation: 0
+    state: enabled
+- name: ntnisac_esn0_noise_0
+  id: ntnisac_esn0_noise
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: Es per OCCUPIED resource element
+    esn0_db: '40.0'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    n_fft: '512'
+    n_occ: '300'
+    seed: '0'
+    settle: '768000'
+    signal_rms: '-1.0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [480, 260.0]
+    rotation: 0
+    state: enabled
+- name: ntnisac_grid_sense_0
+  id: ntnisac_grid_sense
+  parameters:
+    affinity: ''
+    alias: ''
+    clean_components: '0'
+    clean_delay_cells: '1.0'
+    clean_doppler_hz: '20.0'
+    clutter_guard_bins: '1.0'
+    clutter_locus: 'False'
+    clutter_max_range_m: '250.0'
+    comment: 'Stage 2: 400 ms per dwell, so stride 4'
+    exclude_delay_cells: '1.0'
+    extra_variants: '"reference-only"'
+    link_metrics: 'True'
+    map_doppler_hz: '250.0'
+    max_fragmentation: '-1.0'
+    maxoutbuf: '0'
+    min_det_snr_db: '6.0'
+    min_renyi_bits: '0.0'
+    minoutbuf: '0'
+    n_false_alarms: '1.0'
+    n_frames: n_frames
+    notch_cells: '2.0'
+    pad: '2'
+    publish_maps: 'True'
+    stride: '4'
+    suppress_sidebands: 'True'
+    t_start: t_start
+    tau_bias: tau_bias
+    traj_dir: traj_dir
+    variant: payload-aided
+    wf_dir: wf_dir
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1064, 476.0]
+    rotation: 0
+    state: enabled
+- name: ntnisac_leo_channel_0
+  id: ntnisac_leo_channel
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: Delay only; Doppler falls out of the carrier phase
+    delay_line: '131072'
+    fc: '2000000000.0'
+    fs: samp_rate
+    interp_taps: '16'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    r_nominal: '-1.0'
+    t_start: t_start
+    tau_bias: tau_bias
+    traj_csv: traj_dir + "/traj.csv"
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [264, 360.0]
+    rotation: 0
+    state: enabled
+- name: ntnisac_leo_truth_0
+  id: ntnisac_leo_truth
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: Commanded truth = exact truth; there is no physical reflector
+    fs: samp_rate
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    period_ms: '100.0'
+    port: truth
+    t_start: t_start
+    tau_bias: tau_bias
+    traj_dir: traj_dir
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [656, 412.0]
+    rotation: 0
+    state: enabled
+- name: ntnisac_msg_print_0
+  id: ntnisac_msg_print
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: Readable stage-1 activity in the GRC console.
+    tag: '"coarse"'
+    verbose: 'False'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1360, 116.0]
+    rotation: 0
+    state: enabled
+- name: ntnisac_msg_print_1
+  id: ntnisac_msg_print
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: Readable stage-2 detections in the GRC console.
+    tag: '"sense"'
+    verbose: 'False'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1360, 244.0]
+    rotation: 0
+    state: enabled
+- name: ntnisac_ssb_coarse_0
+  id: ntnisac_ssb_coarse
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: 'Stage 1: always available, 82 ms per 100 ms dwell'
+    exclude_delay_cells: '1.0'
+    gate_widen: '3.0'
+    maxoutbuf: '0'
+    min_snr_db: '12.0'
+    minoutbuf: '0'
+    n_frames: n_frames
+    notch_cells: '2.0'
+    pad: '2'
+    sigma_accel: '3.0'
+    stride: '1'
+    t_start: t_start
+    tau_bias: tau_bias
+    traj_dir: traj_dir
+    wf_dir: wf_dir
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1032, 108.0]
+    rotation: 0
+    state: enabled
+- name: zeromq_pub_msg_sink_0
+  id: zeromq_pub_msg_sink
+  parameters:
+    address: tcp://127.0.0.1:5555
+    affinity: ''
+    alias: ''
+    bind: 'True'
+    comment: PUB so a dashboard crash cannot kill the flowgraph
+    timeout: '100'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1360, 52.0]
+    rotation: 0
+    state: enabled
+- name: zeromq_pub_msg_sink_1
+  id: zeromq_pub_msg_sink
+  parameters:
+    address: tcp://127.0.0.1:5556
+    affinity: ''
+    alias: ''
+    bind: 'True'
+    comment: Stage 2 publishes at its own slower rate
+    timeout: '100'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1416, 188.0]
+    rotation: 0
+    state: enabled
+- name: zeromq_pub_msg_sink_2
+  id: zeromq_pub_msg_sink
+  parameters:
+    address: tcp://127.0.0.1:5557
+    affinity: ''
+    alias: ''
+    bind: 'True'
+    comment: Commanded truth, for live scoring
+    timeout: '100'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1448, 260.0]
+    rotation: 0
+    state: enabled
+
+connections:
+- [blocks_file_source_0, '0', blocks_throttle2_0, '0']
+- [blocks_throttle2_0, '0', ntnisac_leo_channel_0, '0']
+- [ntnisac_esn0_noise_0, '0', ntnisac_leo_truth_0, '0']
+- [ntnisac_grid_sense_0, refine, ntnisac_ssb_coarse_0, refine]
+- [ntnisac_grid_sense_0, sense, ntnisac_msg_print_1, in]
+- [ntnisac_grid_sense_0, sense, zeromq_pub_msg_sink_1, in]
+- [ntnisac_leo_channel_0, '0', ntnisac_esn0_noise_0, '0']
+- [ntnisac_leo_truth_0, '0', ntnisac_grid_sense_0, '0']
+- [ntnisac_leo_truth_0, '0', ntnisac_ssb_coarse_0, '0']
+- [ntnisac_leo_truth_0, truth, zeromq_pub_msg_sink_2, in]
+- [ntnisac_ssb_coarse_0, coarse, ntnisac_grid_sense_0, coarse]
+- [ntnisac_ssb_coarse_0, coarse, ntnisac_msg_print_0, in]
+- [ntnisac_ssb_coarse_0, coarse, zeromq_pub_msg_sink_0, in]
+
+metadata:
+  file_format: 1
+  grc_version: 3.10.12.0

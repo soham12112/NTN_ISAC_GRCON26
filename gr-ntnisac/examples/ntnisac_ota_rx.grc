@@ -1,0 +1,583 @@
+options:
+  parameters:
+    author: NTN ISAC prototype
+    catch_exceptions: 'True'
+    category: '[ntnisac]'
+    cmake_opt: ''
+    comment: "RX LAPTOP. USRP -> two sensing paths -> ZMQ -> dashboard.\n\nepoch and t_start MUST MATCH\
+      \ the transmit flowgraph.\n\nThere are two targets and they need different processing, so there\
+      \ are two\npaths on the same samples.\n\n  OTA Sense        the PHYSICAL object between the radios.\
+      \ At 4.5 MHz the\n                   delay cell is 66.6 m and an object a metre off a 5 m\n    \
+      \               baseline has 0.39 m of bistatic excess path - 0.006 of a\n                   cell\
+      \ - so it is inside the direct path's own cell and no\n                   reachable bandwidth separates\
+      \ them. It is measured in\n                   Doppler alone, after CLEAN removes the direct path.\n\
+      \                   Measured: a -40 dB co-delay echo reads +0.8 dB against a\n                 \
+      \  target-absent run without cancellation and +54.0 dB with it.\n\n  SSB Coarse +     the EMULATED\
+      \ drone at 640 m of excess path, with exact\n  Grid Sense       commanded truth. Unchanged from\
+      \ the conducted flowgraph.\n\nRunning both is the point: a target whose answer is known exactly\
+      \ validates\nthe chain, and a target that is really there proves it is not validating\nitself.\n\
+      \nOne caveat, and it is the reason to bother with the GPS antennas. Grid Sense\nand SSB Coarse track\
+      \ the pass from ephemeris and have no clock-offset\nestimator, so they need the two references disciplined.\
+      \ Measured in\nsimulation, 1 ppm of offset takes Grid Sense's peak-to-noise from 91 dB to\n62 dB\
+      \ and its detections become nonsense. OTA Sense estimates the offset\nitself and is immune, because\
+      \ a common carrier error cancels between the\ndirect path and the target. So: free-running gets\
+      \ you the physical target,\nGPS-locked gets you both."
+    copyright: ''
+    description: USRP -> physical + emulated sensing -> ZMQ
+    gen_cmake: 'On'
+    gen_linking: dynamic
+    generate_options: no_gui
+    hier_block_src_path: '.:'
+    id: ntnisac_ota_rx
+    max_nouts: '0'
+    output_language: python
+    placement: (0,0)
+    qt_qss_theme: ''
+    realtime_scheduling: 'True'
+    run: 'True'
+    run_command: '{python} -u {filename}'
+    run_options: run
+    sizing_mode: fixed
+    thread_safe_setters: ''
+    title: NTN ISAC over the air - RX laptop
+    window_size: (1500,1000)
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 8
+    - 8
+    rotation: 0
+    state: enabled
+blocks:
+- name: import_os
+  id: import
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    imports: import os
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 8
+    - 180
+    rotation: 0
+    state: enabled
+- name: samp_rate
+  id: variable
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: From config.json.
+    value: 7.68e6
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 184
+    - 12
+    rotation: 0
+    state: enabled
+- name: mcr
+  id: variable
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: Exactly 4x decimation at 7.68 MS/s.
+    value: 30.72e6
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 304
+    - 12
+    rotation: 0
+    state: enabled
+- name: rf_freq
+  id: variable
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: Must match the transmitter.
+    value: 2.478e9
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 448
+    - 12
+    rotation: 0
+    state: enabled
+- name: wf_dir
+  id: variable
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: 'The receiver needs the bundle too: ref_mask and tx_grid are what make payload-aided sensing
+      possible, and the reference it reconstructs from them IS the reference channel. A B200 has one receive
+      port, so there is no second antenna to take one from.'
+    value: os.path.join(os.environ.get("NTN_ROOT", "."), "data", "wf_ota")
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 592
+    - 12
+    rotation: 0
+    state: enabled
+- name: traj_dir
+  id: variable
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: Same trajectory the TX is playing.
+    value: os.path.join(os.environ.get("NTN_ROOT", "."), "data", "traj_ota")
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 736
+    - 12
+    rotation: 0
+    state: enabled
+- name: t_start
+  id: variable
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: MUST MATCH THE TRANSMITTER.
+    value: '300.0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 880
+    - 12
+    rotation: 0
+    state: enabled
+- name: epoch
+  id: variable
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: MUST MATCH THE TRANSMITTER.
+    value: '0.0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 1024
+    - 12
+    rotation: 0
+    state: enabled
+- name: clock_src
+  id: variable
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: 'See the flowgraph comment: "internal" still gives the physical target but not the emulated
+      one.'
+    value: '"internal"'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 1168
+    - 12
+    rotation: 0
+    state: enabled
+- name: dev_serial
+  id: variable
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: Set this to the receiving B210 serial.
+    value: '""'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 184
+    - 100
+    rotation: 0
+    state: enabled
+- name: gain
+  id: variable
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: 'RX gain, dB. Set it so the direct path sits 15-20 dB below full scale: the ADC has to hold
+      the direct path and the target at once, and clipping the strong one destroys the weak one.'
+    value: '40.0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 344
+    - 100
+    rotation: 0
+    state: enabled
+- name: antenna
+  id: variable
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    value: '"RX2"'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 512
+    - 100
+    rotation: 0
+    state: enabled
+- name: tau_bias
+  id: variable
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: Must match the transmitter. On real RF the extra fixed delay through cable, filters and pipeline
+      is measured once and added here - handoff section 9's V4 calibration constant. OTA Sense converges
+      on it and reports it.
+    value: '40.0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 624
+    - 100
+    rotation: 0
+    state: enabled
+- name: n_frames
+  id: variable
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: 5 frames = 100 ms sensing dwell.
+    value: '5'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 824
+    - 100
+    rotation: 0
+    state: enabled
+- name: micro_frames
+  id: variable
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: '1 s micro-Doppler dwell. It has to be this long: 100 ms gives 5 Hz Doppler cells against
+      a 7 rev/s blade''s 7 Hz line spacing, and an unresolved rotation rate comes out confident and wrong.
+      Measured, 1 s recovers 7.00 and 11.00 exactly.'
+    value: '50'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 936
+    - 100
+    rotation: 0
+    state: enabled
+- name: variant
+  id: variable
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: The research claim. "reference-only" is the comparison.
+    value: '"payload-aided"'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 1136
+    - 100
+    rotation: 0
+    state: enabled
+- name: uhd_usrp_source_0
+  id: uhd_usrp_source
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    type: fc32
+    otw: ''
+    stream_args: ''
+    stream_chans: '[]'
+    dev_addr: dev_serial
+    dev_args: ''''''
+    sync: unknown pps
+    start_time: epoch
+    clock_rate: 30.72e6
+    num_mboards: '1'
+    clock_source0: clock_src
+    time_source0: clock_src
+    sd_spec0: ''
+    nchan: '1'
+    samp_rate: samp_rate
+    center_freq0: rf_freq
+    gain0: gain
+    gain_type0: default
+    ant0: antenna
+    bw0: '0'
+    lo_source0: ''
+    lo_export0: 'False'
+    rx_agc0: Default
+    dc_offs_enb0: ''
+    dc_offs0: '0'
+    iq_imbal_enb0: ''
+    iq_imbal0: '0'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 184
+    - 300
+    rotation: 0
+    state: enabled
+- name: ntnisac_ota_sense_0
+  id: ntnisac_ota_sense
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: 'The physical target. Blackman-Harris across slow time: Hann''s -31 dB sidelobe is the same
+      number as the direct path''s own skirt at the target''s Doppler, and here the target is in the same
+      delay cell so that skirt IS the detection floor.'
+    wf_dir: wf_dir
+    traj_dir: traj_dir
+    n_frames: n_frames
+    t_start: t_start
+    tau_bias: tau_bias
+    variant: variant
+    pad: '2'
+    stride: '1'
+    window: '"blackmanharris"'
+    gps_locked: clock_src == 'gpsdo'
+    n_clean: '2'
+    clean_delay_ns: '200.0'
+    clean_doppler_hz: '15.0'
+    micro_frames: micro_frames
+    micro_every: '10'
+    rot_min_hz: '3.0'
+    rot_max_hz: '40.0'
+    snr_db: '10.0'
+    cfo_max_hz: 12e3
+    publish_profile: 'True'
+    link_metrics: 'True'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 560
+    - 188
+    rotation: 0
+    state: enabled
+- name: ntnisac_ssb_coarse_0
+  id: ntnisac_ssb_coarse
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: 'Stage 1 for the emulated target. Needs the GPSDOs: it has no clock-offset estimator.'
+    wf_dir: wf_dir
+    traj_dir: traj_dir
+    n_frames: n_frames
+    t_start: t_start
+    tau_bias: tau_bias
+    pad: '2'
+    stride: '1'
+    gate_widen: '3.0'
+    sigma_accel: '3.0'
+    min_snr_db: '12.0'
+    exclude_delay_cells: '1.0'
+    notch_cells: '2.0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 560
+    - 508
+    rotation: 0
+    state: enabled
+- name: ntnisac_grid_sense_0
+  id: ntnisac_grid_sense
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: Stage 2. Extra variant maps the SAME dwell, which is the only way two maps are a comparison.
+    wf_dir: wf_dir
+    traj_dir: traj_dir
+    n_frames: n_frames
+    t_start: t_start
+    tau_bias: tau_bias
+    variant: variant
+    pad: '2'
+    stride: '2'
+    n_false_alarms: '1.0'
+    notch_cells: '2.0'
+    exclude_delay_cells: '1.0'
+    min_det_snr_db: '6.0'
+    min_renyi_bits: '0.0'
+    max_fragmentation: '-1.0'
+    suppress_sidebands: 'True'
+    publish_maps: 'True'
+    extra_variants: '"reference-only"'
+    link_metrics: 'True'
+    map_doppler_hz: '250.0'
+    clutter_locus: 'True'
+    clutter_max_range_m: '250.0'
+    clutter_guard_bins: '1.0'
+    clean_components: '1'
+    clean_delay_cells: '1.0'
+    clean_doppler_hz: '20.0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 560
+    - 700
+    rotation: 0
+    state: enabled
+- name: blocks_file_sink_0
+  id: blocks_file_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: 'Raw capture for the offline campaign. Disable if not wanted: 7.68 MS/s is 61 MB per second.'
+    file: '"data/capture.cf32"'
+    type: complex
+    vlen: '1'
+    append: 'False'
+    unbuffered: 'False'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 560
+    - 96
+    rotation: 0
+    state: disabled
+- name: zeromq_pub_msg_sink_0
+  id: zeromq_pub_msg_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: Physical target, per dwell.
+    address: tcp://127.0.0.1:5555
+    bind: 'True'
+    timeout: '100'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 1112
+    - 180
+    rotation: 0
+    state: enabled
+- name: zeromq_pub_msg_sink_1
+  id: zeromq_pub_msg_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: Micro-Doppler (1 s) and emulated-target sensing.
+    address: tcp://127.0.0.1:5556
+    bind: 'True'
+    timeout: '100'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 1112
+    - 300
+    rotation: 0
+    state: enabled
+- name: zeromq_pub_msg_sink_2
+  id: zeromq_pub_msg_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: Sync state, for a lock indicator.
+    address: tcp://127.0.0.1:5557
+    bind: 'True'
+    timeout: '100'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 1112
+    - 420
+    rotation: 0
+    state: enabled
+connections:
+- - uhd_usrp_source_0
+  - '0'
+  - ntnisac_ota_sense_0
+  - '0'
+- - uhd_usrp_source_0
+  - '0'
+  - ntnisac_ssb_coarse_0
+  - '0'
+- - uhd_usrp_source_0
+  - '0'
+  - ntnisac_grid_sense_0
+  - '0'
+- - uhd_usrp_source_0
+  - '0'
+  - blocks_file_sink_0
+  - '0'
+- - ntnisac_ota_sense_0
+  - ota
+  - zeromq_pub_msg_sink_0
+  - in
+- - ntnisac_ota_sense_0
+  - micro
+  - zeromq_pub_msg_sink_1
+  - in
+- - ntnisac_ota_sense_0
+  - state
+  - zeromq_pub_msg_sink_2
+  - in
+- - ntnisac_ssb_coarse_0
+  - coarse
+  - ntnisac_grid_sense_0
+  - coarse
+- - ntnisac_grid_sense_0
+  - refine
+  - ntnisac_ssb_coarse_0
+  - refine
+- - ntnisac_grid_sense_0
+  - sense
+  - zeromq_pub_msg_sink_1
+  - in
+metadata:
+  file_format: 1

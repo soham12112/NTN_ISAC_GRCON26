@@ -1,0 +1,65 @@
+id: ntnisac_link_budget
+label: Bistatic Link Budget
+category: '[ntnisac]'
+
+templates:
+  imports: from gnuradio import ntnisac
+  make: |-
+    ntnisac.link_budget(${rcs_m2}, ${receiver_range_m}, ${direct_cn_db},
+        ${bandwidth_hz}, ${dwell_s}, ${threshold_db}, ${implementation_loss_db})
+
+parameters:
+- id: rcs_m2
+  label: Radar cross section (m^2)
+  dtype: real
+  default: '1000.0'
+- id: receiver_range_m
+  label: Target-to-receiver range (m)
+  dtype: real
+  default: '500.0'
+- id: direct_cn_db
+  label: Direct carrier/noise (dB)
+  dtype: real
+  default: '15.0'
+- id: bandwidth_hz
+  label: Occupied bandwidth (Hz)
+  dtype: real
+  default: '4.5e6'
+- id: dwell_s
+  label: Coherent dwell (s)
+  dtype: real
+  default: '0.1'
+- id: threshold_db
+  label: Detection threshold (dB)
+  dtype: real
+  default: '13.0'
+- id: implementation_loss_db
+  label: Measured implementation loss (dB)
+  dtype: real
+  default: '0.0'
+
+inputs:
+- domain: message
+  id: query
+  optional: true
+
+outputs:
+- domain: message
+  id: result
+  optional: true
+
+documentation: |-
+  Far-illuminator bistatic link-budget check. The echo-to-direct ratio is
+
+      sigma / (4*pi*Rr^2)
+
+  so satellite range and transmit power cancel. The block publishes one result
+  when the flowgraph starts and accepts runtime query dictionaries.
+
+  The output separates ideal time-bandwidth gain, direct carrier/noise,
+  detection threshold, and implementation loss. Do not call post-dwell SNR
+  "margin": margin is SNR minus the threshold. This distinction is why a
+  -61 dB vehicle can have about 10.5 dB post-dwell SNR and still fail a 13 dB
+  detector.
+
+file_format: 1

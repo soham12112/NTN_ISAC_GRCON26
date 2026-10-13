@@ -1,0 +1,6 @@
+This project is licensed under the GNU General Public License v3.0 or later
+(GPL-3.0-or-later). That matches the SPDX identifier on `gr-ntnisac`, which
+is a GNU Radio out-of-tree module.
+
+You should have received a copy of the GNU General Public License along with
+GNU Radio. If not, see <https://www.gnu.org/licenses/>.

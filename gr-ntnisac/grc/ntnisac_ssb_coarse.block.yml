@@ -1,0 +1,99 @@
+id: ntnisac_ssb_coarse
+label: SSB Coarse (stage 1)
+category: '[ntnisac]'
+
+templates:
+  imports: from gnuradio import ntnisac
+  make: |-
+    ntnisac.ssb_coarse(${wf_dir}, ${traj_dir}, ${n_frames}, ${t_start}, ${tau_bias},
+        ${pad}, ${stride}, ${gate_widen}, ${sigma_accel}, ${min_snr_db},
+        ${exclude_delay_cells}, ${notch_cells})
+
+parameters:
+- id: wf_dir
+  label: Waveform bundle dir
+  dtype: string
+- id: traj_dir
+  label: Trajectory dir
+  dtype: string
+- id: n_frames
+  label: Frames per dwell
+  dtype: int
+  default: '5'
+- id: t_start
+  label: Start time in pass (s)
+  dtype: real
+  default: '0.0'
+- id: tau_bias
+  label: Delay bias (samples)
+  dtype: real
+  default: '40.0'
+- id: pad
+  label: Zero-pad factor
+  dtype: int
+  default: '2'
+  hide: part
+- id: stride
+  label: Process 1 dwell in N
+  dtype: int
+  default: '1'
+- id: gate_widen
+  label: Gate sigma multiplier
+  dtype: real
+  default: '3.0'
+- id: sigma_accel
+  label: Tracker accel sigma (m/s^2)
+  dtype: real
+  default: '3.0'
+- id: min_snr_db
+  label: Min coarse SNR to track (dB)
+  dtype: real
+  default: '12.0'
+- id: exclude_delay_cells
+  label: Direct-path blanking (cells)
+  dtype: real
+  default: '1.0'
+  hide: part
+- id: notch_cells
+  label: Zero-Doppler notch (cells)
+  dtype: real
+  default: '2.0'
+  hide: part
+
+inputs:
+- domain: stream
+  dtype: complex
+- domain: message
+  id: refine
+  optional: true
+
+outputs:
+- domain: message
+  id: coarse
+  optional: true
+
+documentation: |-
+  Stage 1 of the two-stage flow: coarse detection and tracking from the SSB.
+
+  Matched filter against the known SSB reference elements (paper eq 6), MTI by
+  adjacent-frame subtraction (eq 7), non-coherent range profile (eq 8), a
+  Gaussian gate around the tracker's prediction (eq 9), parabolic sub-cell
+  refinement (eq 10), and radial velocity from the inter-repetition phase
+  difference (eq 11-12) rather than a Doppler FFT.
+
+  The SSB is transmitted regardless of what the scheduler is doing, so this
+  block produces an estimate every dwell whether or not there is PDSCH traffic
+  to sense on. That is why the tracker lives here and not downstream.
+
+  Ambiguity, which is not optional: one SSB per 20 ms frame is a 50 Hz
+  pulse-pair PRF, unambiguous only to +-25 Hz, and this scenario's drone
+  reaches 77 Hz of residual Doppler. Measured, the raw coarse Doppler is wrong
+  by exactly one PRF. Unwrapped against this tracker's forecast it is within
+  0.03 Hz. Feed the "refine" port from ntnisac.grid_sense to close that loop.
+
+  Publishes on "coarse": the estimate, the Gaussian gate for stage 2, the
+  tracker state and a five-dwell forecast. About 82 ms per 100 ms dwell in
+  Python, of which 80 ms is the OFDM demodulation - so stage 1 alone keeps up
+  with the stream where stage 2 does not.
+
+file_format: 1

@@ -1,0 +1,200 @@
+id: ntnisac_ota_sense
+label: OTA Sense (over the air)
+category: '[ntnisac]'
+
+templates:
+  imports: from gnuradio import ntnisac
+  make: |-
+    ntnisac.ota_sense(${wf_dir}, ${traj_dir}, ${n_frames}, ${t_start}, ${tau_bias},
+        ${variant}, ${pad}, ${stride}, ${window}, ${gps_locked},
+        ${n_clean}, ${clean_delay_ns}, ${clean_doppler_hz},
+        ${micro_frames}, ${micro_every}, ${rot_min_hz}, ${rot_max_hz},
+        ${snr_db}, ${cfo_max_hz}, ${publish_profile}, ${link_metrics})
+
+parameters:
+- id: wf_dir
+  label: Waveform bundle dir
+  dtype: string
+- id: traj_dir
+  label: Trajectory dir
+  dtype: string
+- id: n_frames
+  label: Frames per dwell
+  dtype: int
+  default: '5'
+- id: t_start
+  label: Start time in pass (s)
+  dtype: real
+  default: '300.0'
+- id: tau_bias
+  label: Delay bias (samples)
+  dtype: real
+  default: '40.0'
+- id: variant
+  label: Sensing variant
+  dtype: string
+  default: payload-aided
+  options: [reference-only, payload-aided, genie]
+  option_labels: [reference-only, payload-aided, genie (upper bound)]
+- id: pad
+  label: Zero-pad factor
+  dtype: int
+  default: '2'
+  hide: part
+- id: stride
+  label: Process 1 dwell in N
+  dtype: int
+  default: '1'
+- id: window
+  label: Slow-time window
+  dtype: string
+  default: blackmanharris
+  options: [hann, blackmanharris]
+  option_labels: ['Hann (-31 dB sidelobes)', 'Blackman-Harris (-92 dB)']
+- id: gps_locked
+  label: GPSDOs locked
+  dtype: bool
+  default: 'False'
+  options: ['True', 'False']
+- id: n_clean
+  label: CLEAN components
+  dtype: int
+  default: '2'
+- id: clean_delay_ns
+  label: CLEAN delay window (+-ns)
+  dtype: real
+  default: '200.0'
+- id: clean_doppler_hz
+  label: CLEAN Doppler window (+-Hz)
+  dtype: real
+  default: '15.0'
+- id: micro_frames
+  label: Micro-Doppler dwell (frames)
+  dtype: int
+  default: '50'
+- id: micro_every
+  label: Publish micro every N dwells
+  dtype: int
+  default: '10'
+- id: rot_min_hz
+  label: Rotation search min (rev/s)
+  dtype: real
+  default: '3.0'
+- id: rot_max_hz
+  label: Rotation search max (rev/s)
+  dtype: real
+  default: '40.0'
+- id: snr_db
+  label: Line detection floor (dB)
+  dtype: real
+  default: '10.0'
+- id: cfo_max_hz
+  label: Acquisition carrier search (+-Hz)
+  dtype: real
+  default: '12e3'
+- id: publish_profile
+  label: Publish Doppler profile
+  dtype: bool
+  default: 'True'
+  options: ['True', 'False']
+- id: link_metrics
+  label: Compute EVM / SER / throughput
+  dtype: bool
+  default: 'False'
+  options: ['True', 'False']
+
+inputs:
+- domain: stream
+  dtype: complex
+- domain: message
+  id: ctrl
+  optional: true
+
+outputs:
+- domain: message
+  id: ota
+  optional: true
+- domain: message
+  id: micro
+  optional: true
+- domain: message
+  id: state
+  optional: true
+
+documentation: |-
+  The over-the-air receive path, for the two-laptop setup with a physical
+  object between the radios.
+
+  Three things here that the conducted chain does not need.
+
+  SYNCHRONISATION. ssb_coarse and grid_sense build an EphemerisTracker, which
+  commands the pass. Across two laptops the receiver knows neither when the
+  transmitter started nor how far its reference has drifted, so this block uses
+  ota.OtaTracker instead: the commanded trajectory as feedforward, plus a
+  constant offset d0 and one fractional clock error eps estimated per dwell
+  from the channel estimate's phase slopes.
+
+  eps is one number, not two, and that is physics rather than economy. A B210
+  derives its local oscillator and its sample clock from the same TCXO, so a
+  fractional error puts the carrier at +eps*fc AND makes the apparent delay
+  drift at -eps per second. Those are the same quantity. Estimating a carrier
+  offset and a timing drift independently describes a transmitter that cannot
+  exist.
+
+  With both GPSDOs locked, set "GPSDOs locked": eps is then around 1e-11 and
+  holding it at zero is more accurate than measuring it, since anything the
+  loop would track at that level is multipath. Free-running, two B210 TCXOs
+  give eps up to 4 ppm, which is 9.9 kHz of carrier offset at 2.478 GHz and
+  31 samples per second of drift - the same order as the pass's own 170.
+
+  CANCELLATION. The delay cell is 66.6 m at 4.5 MHz. A real object a metre off
+  a five-metre baseline has 0.39 m of bistatic excess path, which is 0.006 of a
+  cell: it is inside the direct path's own cell and no reachable bandwidth
+  separates them. So the direct path is not background, it is the noise floor
+  of the entire measurement, and CLEAN is what sets that floor. Because the
+  aperture W is known exactly - it is occ_mask, shipped in the bundle - a tap's
+  contribution is known in closed form up to one complex scalar, so this is a
+  least-squares subtraction and not a subspace projection: no degrees of
+  freedom are spent and nothing a target could occupy is removed.
+
+  Measured on the simulated link, tests/verify_ota.py V19, a -40 dB co-delay
+  echo against a target-absent run:
+
+      uncancelled   +0.8 dB     indistinguishable from absent
+      cancelled    +54.0 dB
+
+  and after cancellation 15 dB of echo costs 15 dB of detection SNR, which is
+  the signature of actually measuring the target rather than the direct path's
+  structure.
+
+  MICRO-DOPPLER. A rotating scatterer has a phase modulation index
+  beta = 2 pi r / lambda, so its echo is a Bessel comb of lines spaced at the
+  rotation rate with a sharp envelope edge at the tip-speed Doppler
+  2 pi r f_rot / lambda. Both numbers are recovered, which gives the rotation
+  rate and the tip radius separately, and both are checkable against a
+  tachometer. That is why a rotating target is worth more here than a person
+  walking: it carries its own ground truth and it repeats.
+
+  The two numbers need different dwells and are published on different ports.
+  The edge is readable from the 100 ms sensing dwell and appears on "ota". The
+  line spacing is not - 100 ms gives 5 Hz Doppler cells against a 7 rev/s
+  blade's 7 Hz spacing - so cancelled dwells are accumulated and analysed at
+  "Micro-Doppler dwell" frames, published on "micro". Measured: a 1 s dwell
+  recovers 7.00 and 11.00 rev/s exactly; 100 ms and 500 ms both return a
+  harmonic, and an unresolved estimate is confident and wrong, so it is worth
+  knowing that the dwell is the reason.
+
+  Pick a rotation rate whose harmonics miss the aperture comb. Slot 0 of every
+  frame carries the SSB and no PDSCH, so W changes once per 20 ms and every tap
+  acquires a Doppler comb at multiples of 25 Hz about 9 dB down (findings.md
+  sections 11 and 15), right in the band a rotating target occupies. At
+  7 rev/s the blade's lines fall on multiples of 7 and never coincide below
+  175 Hz. A rate that divides 25 puts its whole signature on masked bins.
+
+  This block does not replace the emulated-target path. Run ssb_coarse and
+  grid_sense alongside it, with their Delay bias set to the value this block
+  converges on - handoff section 9's V4 calibration constant - and the demo
+  shows a commanded target at 640 m with exact truth and a real one at zero
+  excess path, in one capture.
+
+file_format: 1

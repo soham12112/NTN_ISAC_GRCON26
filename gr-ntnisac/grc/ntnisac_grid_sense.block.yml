@@ -1,0 +1,203 @@
+id: ntnisac_grid_sense
+label: Grid Sense (stage 2)
+category: '[ntnisac]'
+
+templates:
+  imports: from gnuradio import ntnisac
+  make: |-
+    ntnisac.grid_sense(${wf_dir}, ${traj_dir}, ${n_frames}, ${t_start}, ${tau_bias},
+        ${variant}, ${pad}, ${stride}, ${n_false_alarms}, ${notch_cells},
+        ${exclude_delay_cells}, ${min_det_snr_db}, ${min_renyi_bits},
+        ${max_fragmentation}, ${suppress_sidebands}, ${publish_maps},
+        ${extra_variants}, ${link_metrics}, ${map_doppler_hz},
+        ${clutter_locus}, ${clutter_max_range_m}, ${clutter_guard_bins},
+        ${clean_components}, ${clean_delay_cells}, ${clean_doppler_hz})
+
+parameters:
+- id: wf_dir
+  label: Waveform bundle dir
+  dtype: string
+- id: traj_dir
+  label: Trajectory dir
+  dtype: string
+- id: n_frames
+  label: Frames per dwell
+  dtype: int
+  default: '5'
+- id: t_start
+  label: Start time in pass (s)
+  dtype: real
+  default: '0.0'
+- id: tau_bias
+  label: Delay bias (samples)
+  dtype: real
+  default: '40.0'
+- id: variant
+  label: Sensing variant
+  dtype: string
+  default: payload-aided
+  options: [reference-only, payload-aided, genie]
+  option_labels: [reference-only, payload-aided, genie (upper bound)]
+- id: pad
+  label: Zero-pad factor
+  dtype: int
+  default: '2'
+  hide: part
+- id: stride
+  label: Process 1 dwell in N
+  dtype: int
+  default: '4'
+- id: n_false_alarms
+  label: Expected false alarms per dwell
+  dtype: real
+  default: '1.0'
+- id: notch_cells
+  label: Zero-Doppler notch (cells)
+  dtype: real
+  default: '2.0'
+- id: exclude_delay_cells
+  label: Direct-path blanking (cells)
+  dtype: real
+  default: '1.0'
+- id: min_det_snr_db
+  label: Detection SNR floor (dB)
+  dtype: real
+  default: '6.0'
+- id: min_renyi_bits
+  label: Resource gate, min H_2 (bits)
+  dtype: real
+  default: '0.0'
+- id: max_fragmentation
+  label: Resource gate, max fragmentation (<0 = off)
+  dtype: real
+  default: '-1.0'
+- id: suppress_sidebands
+  label: Reject frame-rate comb
+  dtype: bool
+  default: 'True'
+  options: ['True', 'False']
+- id: publish_maps
+  label: Publish map (cropped, dB over own noise)
+  dtype: bool
+  default: 'False'
+  options: ['True', 'False']
+- id: extra_variants
+  label: Extra variants (comma separated)
+  dtype: string
+  default: ''
+- id: link_metrics
+  label: Compute EVM / SER / throughput
+  dtype: bool
+  default: 'False'
+  options: ['True', 'False']
+- id: map_doppler_hz
+  label: Map Doppler half-span (Hz)
+  dtype: real
+  default: '250.0'
+  hide: part
+- id: clutter_locus
+  label: Ephemeris clutter locus (replaces notch)
+  dtype: bool
+  default: 'False'
+  options: ['True', 'False']
+- id: clutter_max_range_m
+  label: Maximum stationary-clutter range (m)
+  dtype: real
+  default: '250.0'
+- id: clutter_guard_bins
+  label: Clutter-locus guard (display bins)
+  dtype: real
+  default: '1.0'
+- id: clean_components
+  label: Direct-path CLEAN components
+  dtype: int
+  default: '0'
+- id: clean_delay_cells
+  label: CLEAN delay half-span (cells)
+  dtype: real
+  default: '1.0'
+- id: clean_doppler_hz
+  label: CLEAN Doppler half-span (Hz)
+  dtype: real
+  default: '20.0'
+
+inputs:
+- domain: stream
+  dtype: complex
+- domain: message
+  id: coarse
+  optional: true
+
+outputs:
+- domain: message
+  id: sense
+  optional: true
+- domain: message
+  id: refine
+  optional: true
+
+documentation: |-
+  Stage 2 of the two-stage flow: gated delay-Doppler sensing on the full grid.
+
+  Reconstructing demodulated data as a passive-radar reference is prior art.
+  This block tests the project's contribution: an NR scheduler changes the
+  available time-frequency aperture, making sensing quality depend on the
+  allocation. It provides three controlled reference choices:
+
+      reference-only   W = ref_mask   X_est = known reference values
+      payload-aided    W = occ_mask   X_est = references + sliced decisions
+      genie            W = occ_mask   X_est = tx_grid
+
+  One code path, one flag. The genie branch is the upper bound and exists to
+  preempt any accusation of cheating in the payload-aided path.
+
+  Chain: build the variant, delay-Doppler map, suppress stationary clutter,
+  apply stage 1's Gaussian delay gate, CA-CFAR (paper eq 34-35), DBSCAN
+  (eq 36-37), reject the known frame-rate aperture comb, then a detection SNR
+  floor.
+
+  Two departures from the paper's section IV-B. The map is delay-Doppler, not
+  range-AoA: this branch uses one receive channel and there is no spatial
+  aperture to beamform over. And the legacy clutter null is applied in the
+  Doppler domain, not
+  as an adjacent-symbol difference - at a 71.35 us symbol period that would be
+  a high-pass with its first null at 14 kHz and would put every target in this
+  scenario, tens of hertz, 37 dB down.
+
+  A zero-Doppler notch is not generic under a moving illuminator. Enable
+  "Ephemeris clutter locus" to replace it with the conservative stationary
+  envelope |f| <= (fc/c) d omega, where omega comes from trajectory metadata
+  and d is bounded from excess delay, minimum satellite elevation and the
+  configured surveillance range. The maximum range is explicit because
+  bistatic excess delay alone does not determine receiver-to-object range.
+
+  Set "Direct-path CLEAN components" to 1 for realistic weak-target runs.
+  CLEAN is restricted to the direct path's delay cell and Doppler neighbourhood
+  so it cannot consume the target it is meant to reveal. Zero preserves the
+  V8-V15 legacy baseline.
+
+  False alarms are specified as an expected count per dwell, not a per-cell
+  Pfa. The paper's Pfa = 1e-3 is right for its range-azimuth map; on this
+  2800 x 600 delay-Doppler map it budgets 1680 false alarms, and measured it
+  produced 605 clusters and a track for each.
+
+  Set "Reject frame-rate comb" off to see why it is on: slot 0 of every frame
+  carries the SSB and no PDSCH, so the aperture changes once per 20 ms frame
+  and every tap acquires a 50 Hz-spaced Doppler comb about 9 dB down. Eight
+  comb orders survived CFAR on a clean run.
+
+  "Extra variants" maps more variants from the SAME dwell, which is what two
+  side-by-side maps require - two maps are only a comparison if they come from
+  identical received samples. The channel estimate is shared, so a second map
+  costs a map (~100 ms), not a map plus a channel estimate.
+
+  "Compute EVM / SER / throughput" adds the communication-side metrics. Note
+  that BLER is NOT among them and cannot be: it needs LDPC decoding, which
+  handoff section 12 forbids in the live path. What is reported instead is the
+  uncoded symbol error rate against tx_grid, and a display must say so.
+
+  About 400 ms per 100 ms dwell in Python, 600 ms with a second variant and
+  the metrics, so use Stride 4 or more live. Replay and the offline campaign
+  run at stride 1.
+
+file_format: 1

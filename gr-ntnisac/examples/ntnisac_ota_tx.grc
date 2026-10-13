@@ -1,0 +1,414 @@
+options:
+  parameters:
+    author: NTN ISAC prototype
+    catch_exceptions: 'True'
+    category: '[ntnisac]'
+    cmake_opt: ''
+    comment: 'TX LAPTOP. Waveform file -> emulated LEO pass -> USRP.
+
+
+      Run the receive flowgraph on the other laptop with the SAME epoch and t_start.
+
+      The two variables at the top left are the only things that must match.
+
+
+      The LEO channel is applied digitally before the DAC (handoff section 2), so
+
+      what leaves the antenna already carries the pass''s Doppler, Doppler rate and
+
+      delay walk. Nothing about the emulation changes going over the air.
+
+
+      Power: at 2478 MHz under FCC part 15.247 this is a digital modulation system,
+
+      licence-free to 30 dBm with a 6 dBi antenna. A B200 gives about 10 dBm here.
+
+      tx_iq is scaled to RMS 0.1 with 10.6 dB of peak-to-average, so amp above ~2.5
+
+      clips the DAC - and clipping is a nonlinearity the receiver''s reference does
+
+      not contain, so it quietly ruins every sensing measurement downstream.'
+    copyright: ''
+    description: File -> LEO channel -> USRP, GPS-disciplined
+    gen_cmake: 'On'
+    gen_linking: dynamic
+    generate_options: no_gui
+    hier_block_src_path: '.:'
+    id: ntnisac_ota_tx
+    max_nouts: '0'
+    output_language: python
+    placement: (0,0)
+    qt_qss_theme: ''
+    realtime_scheduling: 'True'
+    run: 'True'
+    run_command: '{python} -u {filename}'
+    run_options: run
+    sizing_mode: fixed
+    thread_safe_setters: ''
+    title: NTN ISAC over the air - TX laptop
+    window_size: (1400,900)
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 8
+    - 8
+    rotation: 0
+    state: enabled
+blocks:
+- name: import_os
+  id: import
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    imports: import os
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 8
+    - 96
+    rotation: 0
+    state: enabled
+- name: samp_rate
+  id: variable
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: From config.json. Do not change alone.
+    value: 7.68e6
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 184
+    - 12
+    rotation: 0
+    state: enabled
+- name: mcr
+  id: variable
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: Master clock rate. 32e6 gives a decimation of 4.1667 which UHD approximates silently, putting
+      a fractional resampler in a chain whose whole point is delay accuracy. 30.72e6 gives exactly 4.
+    value: 30.72e6
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 304
+    - 12
+    rotation: 0
+    state: enabled
+- name: rf_freq
+  id: variable
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: 2.4 GHz ISM, above Wi-Fi channel 11 (which tops out at 2473) and below the band edge. Survey
+      the local band first.
+    value: 2.478e9
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 448
+    - 12
+    rotation: 0
+    state: enabled
+- name: wf_dir
+  id: variable
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: 'Anchored at $NTN_ROOT, not the working directory: GRC runs a flowgraph from its own folder.'
+    value: os.path.join(os.environ.get("NTN_ROOT", "."), "data", "wf_ota")
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 592
+    - 12
+    rotation: 0
+    state: enabled
+- name: traj_dir
+  id: variable
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: Trajectory directory.
+    value: os.path.join(os.environ.get("NTN_ROOT", "."), "data", "traj_ota")
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 736
+    - 12
+    rotation: 0
+    state: enabled
+- name: t_start
+  id: variable
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: 'Trajectory time of the first transmitted sample. 300 is closest approach, where the range
+      rate passes through zero: the easy epoch to bring a link up on. 500 is where the emulated drone
+      sits at 640 m of excess path and is the one the demo uses.'
+    value: '300.0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 880
+    - 12
+    rotation: 0
+    state: enabled
+- name: epoch
+  id: variable
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: MUST MATCH THE RECEIVER. Absolute GPS second at which the first sample is emitted. 0 means
+      start immediately, which gives up the shared time base - use gr/flowgraphs/ota_tx.py to pick one.
+    value: '0.0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 1056
+    - 12
+    rotation: 0
+    state: enabled
+- name: clock_src
+  id: variable
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: Set to "internal" to run free and measure the clock-offset floor instead of eliminating it
+      - handoff section 2's framing, which stays available on purpose.
+    value: '"internal"'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 1200
+    - 12
+    rotation: 0
+    state: enabled
+- name: dev_serial
+  id: variable
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: Set this to the transmitting B210 serial. Two radios on one bench and an unqualified
+      device string is a coin toss.
+    value: '""'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 184
+    - 100
+    rotation: 0
+    state: enabled
+- name: gain
+  id: variable
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: TX gain, dB.
+    value: '70.0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 344
+    - 100
+    rotation: 0
+    state: enabled
+- name: antenna
+  id: variable
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    value: '"TX/RX"'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 464
+    - 100
+    rotation: 0
+    state: enabled
+- name: amp
+  id: variable
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: Scalar before the DAC. Above ~2.5 clips.
+    value: '1.0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 584
+    - 100
+    rotation: 0
+    state: enabled
+- name: tau_bias
+  id: variable
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: Constant delay that keeps the interpolator's read pointer causally behind its write pointer.
+      The receiver must use the same number.
+    value: '40.0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 712
+    - 100
+    rotation: 0
+    state: enabled
+- name: blocks_file_source_0
+  id: blocks_file_source
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: 'repeat=True: the file is exactly 20 ms, one SSB period, so it loops at a frame boundary.'
+    file: wf_dir + '/tx_iq.cf32'
+    type: complex
+    vlen: '1'
+    repeat: 'True'
+    begin_tag: pmt.PMT_NIL
+    length: '0'
+    offset: '0'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 184
+    - 268
+    rotation: 0
+    state: enabled
+- name: ntnisac_leo_channel_0
+  id: ntnisac_leo_channel
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: 'The emulated pass. 16-tap sinc: measured 14.2 MS/s against a 7.68 MS/s requirement, so it
+      clears real time with margin.'
+    traj_csv: traj_dir + '/traj.csv'
+    fs: samp_rate
+    fc: rf_freq
+    r_nominal: '-1.0'
+    tau_bias: tau_bias
+    delay_line: '131072'
+    interp_taps: '16'
+    t_start: t_start
+    maxoutbuf: '0'
+    minoutbuf: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 448
+    - 244
+    rotation: 0
+    state: enabled
+- name: blocks_multiply_const_vxx_0
+  id: blocks_multiply_const_vxx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    const: amp
+    type: complex
+    vlen: '1'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 760
+    - 276
+    rotation: 0
+    state: enabled
+- name: uhd_usrp_sink_0
+  id: uhd_usrp_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    type: fc32
+    otw: ''
+    stream_args: ''
+    stream_chans: '[]'
+    dev_addr: dev_serial
+    dev_args: ''''''
+    sync: unknown pps
+    start_time: epoch
+    clock_rate: 30.72e6
+    num_mboards: '1'
+    clock_source0: clock_src
+    time_source0: clock_src
+    sd_spec0: ''
+    nchan: '1'
+    samp_rate: samp_rate
+    center_freq0: rf_freq
+    gain0: gain
+    gain_type0: default
+    ant0: antenna
+    bw0: '0'
+    lo_source0: ''
+    lo_export0: 'False'
+    len_tag_name: ''
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 944
+    - 236
+    rotation: 0
+    state: enabled
+connections:
+- - blocks_file_source_0
+  - '0'
+  - ntnisac_leo_channel_0
+  - '0'
+- - ntnisac_leo_channel_0
+  - '0'
+  - blocks_multiply_const_vxx_0
+  - '0'
+- - blocks_multiply_const_vxx_0
+  - '0'
+  - uhd_usrp_sink_0
+  - '0'
+metadata:
+  file_format: 1

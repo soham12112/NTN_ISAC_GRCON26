@@ -1,0 +1,426 @@
+options:
+  parameters:
+    author: NTN ISAC prototype
+    catch_exceptions: 'True'
+    category: '[ntnisac]'
+    cmake_opt: ''
+    comment: "BENCH. The whole over-the-air receive path, with no radio.\n\nRun this\
+      \ first. It needs nothing but the data/ directory, it runs on one\nlaptop, and\
+      \ it exercises the identical blocks the two over-the-air flowgraphs\nuse - so\
+      \ a number that comes out here is a number the receive path produces.\n\n  \
+      \  File Source -> LEO Channel -> Es/N0 Noise -> LEO Truth -+-> OTA Sense\n \
+      \                                                           +-> SSB Coarse\n\
+      \                                                            +-> Grid Sense\n\
+      \nThe rotating object that would physically sit between the two radios is the\n\
+      fourth path in data/traj_bench, injected by tools/add_bench_target.py. That\
+      \ is\nnot a special case: a rotating scatterer is a range history like any other\
+      \ and\nthe channel block already takes any number of paths, so it plays through\
+      \ the\nsame C++ block the transmit flowgraph uses. Regenerate it with\n\n  \
+      \  $NTN_PY tools/add_bench_target.py --rot-hz 7 --gain-db -30\n\nWhat to look\
+      \ at. Set esn0_db and blade echo wherever you like, then compare the\ntwo numbers\
+      \ OTA Sense prints per dwell: the direct path's peak-to-noise, and\nhow far\
+      \ CLEAN took it down. Then watch the \"micro\" messages, which arrive once\n\
+      per second because that is what it takes to resolve a 7 rev/s line spacing -\n\
+      at the 100 ms sensing dwell the Doppler cell is 5 Hz and the rate comes out\
+      \ a\nharmonic.\n\nThe instructive experiment is to open tools/add_bench_target.py's\
+      \ --gain-db\ndown to -40 and compare Grid Sense with OTA Sense. Grid Sense still\
+      \ finds the\nemulated drone at 640 m, because it is resolved in delay. Nothing\
+      \ finds the\nrotating object without CLEAN, because it is 0.006 of a delay cell\
+      \ from the\ndirect path and what hides it is not noise."
+    copyright: ''
+    description: The OTA receive path, simulated end to end
+    gen_cmake: 'On'
+    gen_linking: dynamic
+    generate_options: no_gui
+    hier_block_src_path: '.:'
+    id: ntnisac_ota_bench
+    max_nouts: '0'
+    output_language: python
+    placement: (0,0)
+    qt_qss_theme: ''
+    realtime_scheduling: ''
+    run: 'True'
+    run_command: '{python} -u {filename}'
+    run_options: run
+    sizing_mode: fixed
+    thread_safe_setters: ''
+    title: NTN ISAC over-the-air bench (no radio)
+    window_size: (1800,1000)
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [8, 8]
+    rotation: 0
+    state: enabled
+
+blocks:
+- name: esn0_db
+  id: variable
+  parameters:
+    comment: Es/N0 per occupied subcarrier. The point of the bench is that lowering
+      this is NOT what hides the rotating target.
+    value: '45.0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1064, 12]
+    rotation: 0
+    state: enabled
+- name: n_frames
+  id: variable
+  parameters:
+    comment: 5 frames = 100 ms sensing dwell.
+    value: '5'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [944, 12]
+    rotation: 0
+    state: enabled
+- name: samp_rate
+  id: variable
+  parameters:
+    comment: From config.json.
+    value: 7.68e6
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [184, 12]
+    rotation: 0
+    state: enabled
+- name: t_start
+  id: variable
+  parameters:
+    comment: 'Closest approach: the range rate passes through zero, so this is the
+      benign epoch. Try 500 to put the emulated drone at 640 m of excess path, which
+      is where it has the most separation.'
+    value: '300.0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [664, 12]
+    rotation: 0
+    state: enabled
+- name: tau_bias
+  id: variable
+  parameters:
+    comment: ''
+    value: '40.0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [840, 12]
+    rotation: 0
+    state: enabled
+- name: traj_dir
+  id: variable
+  parameters:
+    comment: traj_ota plus a rotating target as a fourth path, made by tools/add_bench_target.py.
+      Use traj_bench_all to keep the emulated clutter and drone as well.
+    value: os.path.join(os.environ.get("NTN_ROOT", "."), "data", "traj_bench")
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [448, 12]
+    rotation: 0
+    state: enabled
+- name: variant
+  id: variable
+  parameters:
+    comment: The research claim. Try "reference-only" for the comparison.
+    value: '"payload-aided"'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1240, 12]
+    rotation: 0
+    state: enabled
+- name: wf_dir
+  id: variable
+  parameters:
+    comment: Anchored at $NTN_ROOT, so it does not matter where GRC runs the flowgraph
+      from.
+    value: os.path.join(os.environ.get("NTN_ROOT", "."), "data", "wf_ota")
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [304, 12]
+    rotation: 0
+    state: enabled
+- name: blocks_file_source_0
+  id: blocks_file_source
+  parameters:
+    affinity: ''
+    alias: ''
+    begin_tag: pmt.PMT_NIL
+    comment: 20 ms, one SSB period, so repeat loops at a frame boundary.
+    file: wf_dir + '/tx_iq.cf32'
+    length: '0'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    offset: '0'
+    repeat: 'True'
+    type: complex
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [152, 220]
+    rotation: 0
+    state: enabled
+- name: import_os
+  id: import
+  parameters:
+    alias: ''
+    comment: ''
+    imports: import os
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [8, 96]
+    rotation: 0
+    state: enabled
+- name: ntnisac_esn0_noise_0
+  id: ntnisac_esn0_noise
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: Calibrated against the occupied subcarriers.
+    esn0_db: esn0_db
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    n_fft: '512'
+    n_occ: '300'
+    seed: '0'
+    settle: '768000'
+    signal_rms: '-1.0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [696, 228]
+    rotation: 0
+    state: enabled
+- name: ntnisac_grid_sense_0
+  id: ntnisac_grid_sense
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: Stage 2, the emulated drone. Stride 2 because it costs more than its
+      dwell in Python.
+    clutter_guard_bins: '1.0'
+    clutter_locus: 'True'
+    clutter_max_range_m: '250.0'
+    clean_components: '1'
+    clean_delay_cells: '1.0'
+    clean_doppler_hz: '20.0'
+    exclude_delay_cells: '1.0'
+    extra_variants: '""'
+    link_metrics: 'False'
+    map_doppler_hz: '250.0'
+    max_fragmentation: '-1.0'
+    maxoutbuf: '0'
+    min_det_snr_db: '6.0'
+    min_renyi_bits: '0.0'
+    minoutbuf: '0'
+    n_false_alarms: '1.0'
+    n_frames: n_frames
+    notch_cells: '2.0'
+    pad: '2'
+    publish_maps: 'False'
+    stride: '2'
+    suppress_sidebands: 'True'
+    t_start: t_start
+    tau_bias: tau_bias
+    traj_dir: traj_dir
+    variant: variant
+    wf_dir: wf_dir
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1176, 620]
+    rotation: 0
+    state: enabled
+- name: ntnisac_leo_channel_0
+  id: ntnisac_leo_channel
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: 'Four paths: direct, static clutter, the emulated drone, and the rotating
+      object.'
+    delay_line: '131072'
+    fc: 2.478e9
+    fs: samp_rate
+    interp_taps: '16'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    r_nominal: '-1.0'
+    t_start: t_start
+    tau_bias: tau_bias
+    traj_csv: traj_dir + '/traj.csv'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [384, 196]
+    rotation: 0
+    state: enabled
+- name: ntnisac_leo_truth_0
+  id: ntnisac_leo_truth
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: Commanded truth on the sample clock, for scoring.
+    fs: samp_rate
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    period_ms: '100.0'
+    port: truth
+    t_start: t_start
+    tau_bias: tau_bias
+    traj_dir: traj_dir
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [920, 228]
+    rotation: 0
+    state: enabled
+- name: ntnisac_msg_print_0
+  id: ntnisac_msg_print
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: NOT Message Debug. Payloads are JSON in a u8vector, which Message Debug
+      prints as several thousand decimal bytes.
+    tag: '"ota"'
+    verbose: 'False'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1560, 96]
+    rotation: 0
+    state: enabled
+- name: ntnisac_msg_print_1
+  id: ntnisac_msg_print
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: Rotation rate, once per second.
+    tag: '"micro"'
+    verbose: 'False'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1560, 232]
+    rotation: 0
+    state: enabled
+- name: ntnisac_msg_print_2
+  id: ntnisac_msg_print
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: The emulated target, resolved in delay.
+    tag: '"drone"'
+    verbose: 'False'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1560, 620]
+    rotation: 0
+    state: enabled
+- name: ntnisac_ota_sense_0
+  id: ntnisac_ota_sense
+  parameters:
+    affinity: ''
+    alias: ''
+    cfo_max_hz: 12e3
+    clean_delay_ns: '200.0'
+    clean_doppler_hz: '15.0'
+    comment: The rotating object. Sync, CLEAN, micro-Doppler.
+    gps_locked: 'False'
+    link_metrics: 'True'
+    maxoutbuf: '0'
+    micro_every: '10'
+    micro_frames: '50'
+    minoutbuf: '0'
+    n_clean: '2'
+    n_frames: n_frames
+    pad: '2'
+    publish_profile: 'True'
+    rot_max_hz: '40.0'
+    rot_min_hz: '3.0'
+    snr_db: '10.0'
+    stride: '1'
+    t_start: t_start
+    tau_bias: tau_bias
+    traj_dir: traj_dir
+    variant: variant
+    wf_dir: wf_dir
+    window: '"blackmanharris"'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1176, 100]
+    rotation: 0
+    state: enabled
+- name: ntnisac_ssb_coarse_0
+  id: ntnisac_ssb_coarse
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: Stage 1, the emulated drone.
+    exclude_delay_cells: '1.0'
+    gate_widen: '3.0'
+    maxoutbuf: '0'
+    min_snr_db: '12.0'
+    minoutbuf: '0'
+    n_frames: n_frames
+    notch_cells: '2.0'
+    pad: '2'
+    sigma_accel: '3.0'
+    stride: '1'
+    t_start: t_start
+    tau_bias: tau_bias
+    traj_dir: traj_dir
+    wf_dir: wf_dir
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1176, 396]
+    rotation: 0
+    state: enabled
+
+connections:
+- [blocks_file_source_0, '0', ntnisac_leo_channel_0, '0']
+- [ntnisac_esn0_noise_0, '0', ntnisac_leo_truth_0, '0']
+- [ntnisac_grid_sense_0, refine, ntnisac_ssb_coarse_0, refine]
+- [ntnisac_grid_sense_0, sense, ntnisac_msg_print_2, in]
+- [ntnisac_leo_channel_0, '0', ntnisac_esn0_noise_0, '0']
+- [ntnisac_leo_truth_0, '0', ntnisac_grid_sense_0, '0']
+- [ntnisac_leo_truth_0, '0', ntnisac_ota_sense_0, '0']
+- [ntnisac_leo_truth_0, '0', ntnisac_ssb_coarse_0, '0']
+- [ntnisac_ota_sense_0, micro, ntnisac_msg_print_1, in]
+- [ntnisac_ota_sense_0, ota, ntnisac_msg_print_0, in]
+- [ntnisac_ssb_coarse_0, coarse, ntnisac_grid_sense_0, coarse]
+
+metadata:
+  file_format: 1
+  grc_version: 3.10.12.0
